@@ -1,5 +1,6 @@
 #include "muxed_7seg.h"
 #include "defines.h"
+#include "helper.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -188,14 +189,14 @@ bool muxed_7seg_is_printable_character(char c) {
 }
 
 void muxed_7seg_set_digit(uint8_t digit_index, char c, bool with_dot) {
-	// segment data has to be negated since the segment pins act to ground the
-	// LEDs
+	// segment data has to be negated since segment pins act to ground LEDs
+	auto c_idx = static_cast<uint8_t>(c);
 	if (digit_index < MUXED_7SEG_NUM_DIGITS) {
 		if (with_dot) {
 			digit_segments[digit_index] =
-				~(SEGMENT_DATA[(uint8_t) c] | SEGMENT_DATA[(uint8_t) '.']);
+			        ~(uint8_t)(SEGMENT_DATA[c_idx] | SEGMENT_DATA[(uint8_t)'.']);
 		} else {
-			digit_segments[digit_index] = ~SEGMENT_DATA[(uint8_t) c];
+			digit_segments[digit_index] = ~SEGMENT_DATA[c_idx];
 		}
 	}
 }
@@ -229,7 +230,7 @@ static void cycle_digit() {
 
 	uint8_t old_digit = current_digit;
 	// wrap-around increment of digit index
-	uint8_t new_digit = (current_digit == MUXED_7SEG_NUM_DIGITS) ? 0 : current_digit + 1;
+	uint8_t new_digit = (current_digit == MUXED_7SEG_NUM_DIGITS) ? 0_u8 : current_digit + 1_u8;
 
 	// switch which digit is powered, and update the segments appropriately
 	// the first digitalWrite is not needed if switch_off_active_digit() is called

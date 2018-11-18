@@ -4,6 +4,8 @@
 #include "timers.h"
 #include "tone_gen.h"
 #include "defines.h"
+#include "helper.h"
+#include "millis.h"
 
 #include <util/delay.h>
 #include <avr/io.h>
@@ -74,7 +76,7 @@ void process_input(uint8_t input_pin, void (*action)(), uint8_t repeat_rate) {
  * before applying the [low, high] limits.
  */
 inline void increment_value(uint8_t *counter, uint8_t increment, uint8_t low, uint8_t high) {
-	uint8_t range = high - low + 1;
+	uint8_t range = high - low + (uint8_t)1;
 	uint8_t incremented_counter = *counter + increment;
 	// put back into range
 	if (incremented_counter < low) {
@@ -97,22 +99,20 @@ void increment_bpm(const uint8_t increment) {
 }
 
 void increment_bpm() {
-	increment_bpm(1u);
+	increment_bpm(1_u8);
 }
 
 void decrement_bpm() {
-	// this will technically overflow, but it's okay, despite the warning on
-	// increment_value()
-	increment_bpm((uint8_t) -1);
+	increment_bpm(0_u8 - 1_u8); // (uint8_t)-1
 }
 
 void increment_beats() {
-	increment_value(&beats_per_measure, 1, MIN_BEATS_PER_MEASURE, MAX_BEATS_PER_MEASURE);
+	increment_value(&beats_per_measure, 1_u8, MIN_BEATS_PER_MEASURE, MAX_BEATS_PER_MEASURE);
 	display_timesig();
 }
 
 void increment_ticks() {
-	increment_value(&ticks_per_beat, 1, MIN_TICKS_PER_BEAT, MAX_TICKS_PER_BEAT);
+	increment_value(&ticks_per_beat, 1_u8, MIN_TICKS_PER_BEAT, MAX_TICKS_PER_BEAT);
 	display_timesig();
 }
 
@@ -144,7 +144,7 @@ inline static uint16_t calc_OCR1A() {
         return tock_period_floor; // - 1 + 1;
     } else {
         // Have 'overcounted' enough OR tock_period is exactly divided
-        return tock_period_floor - 1;
+        return tock_period_floor - 1_u16;
     }
 }
 
@@ -160,8 +160,8 @@ void update_bpm() {
 		tock_period_remainder = 0;
 	} else {
 		/* See metronome.h for calculation */
-		tock_period_floor = TOCK_PERIOD_FOR_1_BPM / bpm;
-		tock_period_remainder = TOCK_PERIOD_FOR_1_BPM % bpm;
+		tock_period_floor = static_cast<uint16_t>(TOCK_PERIOD_FOR_1_BPM / bpm);
+		tock_period_remainder = static_cast<uint8_t>(TOCK_PERIOD_FOR_1_BPM % bpm);
 
 		// add 1 if it reduces integer division error
 		// -> we can do better by dynamically correcting the period
@@ -194,7 +194,7 @@ void update_bpm() {
      */
     if (tock_period_floor <= TCNT1) {
         // trigger a match on next count
-        TCNT1 = new_OCR1A - 1;
+        TCNT1 = new_OCR1A - 1_u16;
     }
     SREG = old_SREG;
 }
@@ -268,6 +268,10 @@ ISR(TIMER1_COMPA_vect) {
     metronome_tock();
 }
 
+ISR(TIMER0_OVF_vect) {
+    millis_timer0_callback();
+}
+
 /*
  * Setup switches as input pullup
  */
@@ -317,22 +321,23 @@ void setup() {
 	tock_num_modulo_beat = 0;
 	tock_num_modulo_ticks = 0;
 
+	timer0_1_hold_reset();
 	timer0_setup(16, 128);
-	timer0_hold_reset();
+	timer1_setup();
 	muxed_7seg_init();
-	timer1_init();
 
 	tone_gen_init();
 
     update_bpm();
 	display_bpm();
 
-	timer0_start();
+	timer0_1_start();
 
 	// initial tock
 	metronome_tock();
 }
 
+// poll inputs -> this should probably be done with interrupts
 void loop() {
 	// check for change in BPM
 	if (pressed(SWITCHU)) {

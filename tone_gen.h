@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 void tone_gen_init();
-void tone_gen_start(uint16_t frequency);
+void tone_gen_start(uint16_t approx_frequency);
 void tone_gen_stop();
 
 #endif // TONE_GEN_H

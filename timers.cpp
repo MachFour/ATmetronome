@@ -1,24 +1,23 @@
 
 #include "timers.h"
+#include "defines.h"
 
 #include <avr/io.h>
 #include <avr/cpufunc.h>
+#include <avr/interrupt.h>
 
 
-void timer0_start() {
+void timer0_1_start() {
+    // release prescaler reset, start timer0 and timer1
 	bitClear(GTCCR, TSM);
 }
 
 // stop and reset timer
-void timer0_hold_reset() {
-	uint8_t oldSREG = SREG;
-	cli();
-
+void timer0_1_hold_reset() {
 	bitSet(GTCCR, TSM);
 	bitSet(GTCCR, PSRSYNC);
 	TCNT0 = 0;
-
-	SREG = oldSREG;
+	TCNT1 = 0;
 }
 
 /*
@@ -105,7 +104,7 @@ void timer0_setup(uint8_t ocr0a, uint8_t ocr0b) {
 	 * is the raw count value of timer 0 (8 bits).
 	 */
 
-	uint8_t oldSREG = SREG;
+	auto sreg = SREG;
 	cli();
 
 	// set timer behaviour
@@ -120,9 +119,11 @@ void timer0_setup(uint8_t ocr0a, uint8_t ocr0b) {
 	OCR0B = ocr0b;
 
 	// clear previous interrupt flags (shouldn't really be necessary)
+	/*
 	bitSet(TIFR0, OCF0B);
 	bitSet(TIFR0, OCF0A);
 	bitSet(TIFR0, TOV0);
+	*/
 
 	// enable interrupts on output compare matches A and B, and on overflow.
 	TIMSK0 = 0;
@@ -130,43 +131,27 @@ void timer0_setup(uint8_t ocr0a, uint8_t ocr0b) {
 	bitSet(TIMSK0, OCIE0A);
 	bitSet(TIMSK0, TOIE0);
 
-	SREG = oldSREG;
+	SREG = sreg;
 }
 
 
-void timer1_init() {
+// call timer0_1_hold_reset() before this and timer_0_1_start() after
+void timer1_setup() {
+    auto sreg = SREG;
 	cli();
-	// hold value written to PSRSYNC to halt timer0 and timer1 counts
-	bitSet(GTCCR, TSM);
-	// clear prescaler for timer0 and timer1
-	bitSet(GTCCR, PSRSYNC);
 
-	// reset timer 1
-	TCNT1 = 0;
-
+    // configure control registers as follows:
 	TCCR1A = 0;
 	TCCR1B = 0;
-	// configure control registers as follows:
-
 	// disconnect both output pins (9 and 10) for timer 1
 	// COM1A[1:0], COM1B[1:0] = 0
-
 	// set waveform generation mode to clear timer on compare match
 	bitSet(TCCR1B, WGM12);
-
 	// enable 8x I/O clock prescaler for timer1
 	bitSet(TCCR1B, CS11);
-
 	// enable interrupt for Timer1A Compare match
 	bitSet(TIMSK1, OCIE1A);
 
-	sei();
+    SREG = sreg;
 }
 
-void timer1_start() {
-	cli();
-	// release prescaler reset, start timer0 and timer1
-	bitClear(GTCCR, TSM);
-	sei();
-
-}

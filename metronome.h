@@ -8,15 +8,15 @@
 
 
 // beep sound parameters
-#define BEEP_FREQ_MEASURE (554u << 1)
-#define BEEP_FREQ_BEAT (440u << 1)
-#define BEEP_FREQ_TICK (293u << 1)
-#define BEEP_LENGTH_TOCKS 4
+constexpr unsigned int BEEP_FREQ_MEASURE = 554u << 1u;
+constexpr auto BEEP_FREQ_BEAT = 440u << 1u;
+constexpr auto BEEP_FREQ_TICK = 293u << 1u;
+constexpr auto BEEP_LENGTH_TOCKS = 4;
 
 // parameters for button controls, all in ms
-#define BPM_INCREMENT_REPEAT_RATE 10
-#define TICKS_INCREMENT_REPEAT_RATE 100
-#define INCREMENT_REPEAT_DELAY 300
+constexpr auto BPM_INCREMENT_REPEAT_RATE = 10;
+constexpr auto TICKS_INCREMENT_REPEAT_RATE = 100;
+constexpr auto INCREMENT_REPEAT_DELAY = 300;
 
 #define WITHOUT_DOT false
 #define WITH_DOT true

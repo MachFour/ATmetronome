@@ -7,7 +7,7 @@ include_directories(.)
 include_directories(SYSTEM /usr/avr/include)
 
 
-add_compile_definitions(F_CPU=8000000L)
+add_compile_definitions(F_CPU=8000000U)
 add_compile_definitions(__AVR_ATmega328P__)
 
 add_executable(metronome
@@ -19,4 +19,4 @@ add_executable(metronome
         timers.cpp
         timers.h
         tone_gen.cpp
-        tone_gen.h)
+        tone_gen.h millis.h helper.h millis.cpp)

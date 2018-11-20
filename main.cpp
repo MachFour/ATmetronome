@@ -129,19 +129,22 @@ static void onBeatSubdivisionChange(uint8_t subdivision) {
 
 static void onBeat(uint8_t beat_num, uint8_t beats_per_measure) {
     if (beat_num == 0 && beats_per_measure > 0) {
-        tone_gen_start(BEEP_FREQ_MEASURE);
+        constexpr auto bar_tone = tone_gen_makeConfig(BEEP_FREQ_MEASURE);
+        tone_gen_start(bar_tone);
         setTickSoundTimer();
         led_on();
     } else {
         // next beat
-        tone_gen_start(BEEP_FREQ_BEAT);
+        constexpr auto beat_tone = tone_gen_makeConfig(BEEP_FREQ_BEAT);
+        tone_gen_start(beat_tone);
         setTickSoundTimer();
     }
 }
 
 static void onTick(uint8_t tick_num, uint8_t ticks_per_beat) {
     if (tick_num != 1) {
-        tone_gen_start(BEEP_FREQ_TICK);
+        constexpr auto tick_tone = tone_gen_makeConfig(BEEP_FREQ_TICK);
+        tone_gen_start(tick_tone);
         setTickSoundTimer();
     }
 }

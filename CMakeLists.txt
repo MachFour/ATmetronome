@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 project(metronome)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 
 include_directories(.)
 include_directories(SYSTEM /usr/avr/include)
@@ -21,7 +21,6 @@ add_executable(metronome
         tone_gen.cpp
         tone_gen.h
         millis.h
-        helper.h
         millis.cpp
         main.cpp
         SoftTimer.cpp

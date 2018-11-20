@@ -27,32 +27,11 @@ void tone_gen_init() {
 	SREG = oldSREG;
 }
 
-static const uint16_t prescalars[] {0, 1, 8, 32, 64, 128, 256, 1024};
-static constexpr auto num_prescalars = sizeof(prescalars)/sizeof(prescalars[0]);
 
 
-void tone_gen_start(uint16_t approx_frequency) {
+void tone_gen_start(ToneConfig toneConfig) {
     // from datasheet, ordered so that the bits in the index are the same
     // as the bits needed to be set in TCCR2B to activate that prescaler
-
-	// most of the time, we'll be using the largest prescaler.
-	// so just hardcode it
-
-    constexpr auto prescalar = 1024;
-    constexpr uint16_t base_frequency = F_CPU/prescalar/2;
-    constexpr uint8_t prescalar_bits = 0x7;
-	auto ocr1 = base_frequency/approx_frequency - 1;
-
-    constexpr auto prescalar2 = 256;
-    constexpr uint16_t base_frequency2 = F_CPU/prescalar2/2;
-    constexpr uint8_t prescalar_bits2 = 0x6;
-    auto ocr2 = base_frequency2/approx_frequency - 1;
-
-    // if we can use a smaller prescalar, (and manage an 8-bit count value),
-    // the frequency will be more accurate
-
-    auto ocr = static_cast<uint8_t>(ocr2 <= 255 ? ocr2 : ocr1);
-
 
     /*
 	// the frequency that would be played if the prescaler
@@ -76,11 +55,11 @@ void tone_gen_start(uint16_t approx_frequency) {
 	// set prescaler, and the reset level
 
     // can't just OR in new bits as we need to clear prescalar bits that should now be 0
-    uint8_t new_tccr2b = (uint8_t)(TCCR2B & (uint8_t) 0b11111000u) | prescalar_bits;
+    uint8_t new_tccr2b = (uint8_t)(TCCR2B & (uint8_t) 0b11111000u) | toneConfig.prescalar_bits;
 
     uint8_t oldSREG = SREG;
     cli();
-    OCR2A = ocr;
+    OCR2A = toneConfig.count_value;
     TCCR2B = new_tccr2b;
 	SREG = oldSREG;
 }

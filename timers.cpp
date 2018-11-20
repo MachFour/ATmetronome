@@ -134,24 +134,3 @@ void timer0_setup(uint8_t ocr0a, uint8_t ocr0b) {
 	SREG = sreg;
 }
 
-
-// call timer0_1_hold_reset() before this and timer_0_1_start() after
-void timer1_setup() {
-    auto sreg = SREG;
-	cli();
-
-    // configure control registers as follows:
-	TCCR1A = 0;
-	TCCR1B = 0;
-	// disconnect both output pins (9 and 10) for timer 1
-	// COM1A[1:0], COM1B[1:0] = 0
-	// set waveform generation mode to clear timer on compare match
-	bitSet(TCCR1B, WGM12);
-	// enable 8x I/O clock prescaler for timer1
-	bitSet(TCCR1B, CS11);
-	// enable interrupt for Timer1A Compare match
-	bitSet(TIMSK1, OCIE1A);
-
-    SREG = sreg;
-}
-

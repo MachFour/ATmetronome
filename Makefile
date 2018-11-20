@@ -1,7 +1,3 @@
-# This sample Makefile, explains how you can compile plain AVR C file.
-#
-# Arduino Make file. Refer to https://github.com/sudar/Arduino-Makefile
-
 TARGET = metronome
 
 ### BOARD_TAG
@@ -17,7 +13,7 @@ MCU = atmega328p
 F_CPU = 8000000L
 
 # optimise dat
-# OPTIMIZATION_LEVEL=3
+OPTIMIZATION_LEVEL=2
 
 # override arduino libraries
 ARDUINO_LIBS =
@@ -28,6 +24,7 @@ MONITOR_BAUDRATE  = 115200
 
 PROJECT_DIR       = /home/max/devel/metronome/v3
 
+ISP_PORT = usb
 ISP_PROG = usbasp
 AVRDUDE_ISP_BAUDRATE = 19200
 

@@ -12,11 +12,17 @@ add_compile_definitions(__AVR_ATmega328P__)
 
 add_executable(metronome
         defines.h
-        metronome.cpp
-        metronome.h
+        Metronome.cpp
+        Metronome.h
         muxed_7seg.cpp
         muxed_7seg.h
         timers.cpp
         timers.h
         tone_gen.cpp
-        tone_gen.h millis.h helper.h millis.cpp)
+        tone_gen.h
+        millis.h
+        helper.h
+        millis.cpp
+        main.cpp
+        SoftTimer.cpp
+        SoftTimer.h)

@@ -6,11 +6,15 @@
 #ifndef METRONOME_MILLIS_H
 #define METRONOME_MILLIS_H
 
+#include <stdint.h>
+
 void millis_timer0_callback();
 // measures milliseconds since timer0 started
-unsigned long millis();
+uint32_t millis();
 // counts microseconds, but periodically overflows
-unsigned long micros();
+uint32_t micros();
+
+void delay(uint32_t ms);
 
 // need this to actually make it all work
 //ISR(TIMER0_OVF_vect) {

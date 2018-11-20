@@ -7,25 +7,27 @@
 #include "defines.h"
 #include <avr/interrupt.h>
 
-static constexpr unsigned int clockCyclesPerMicrosecond = F_CPU / 1000000L; // F_CPU in MHz
+static constexpr uint8_t clockCyclesPerMicrosecond = F_CPU / 1000000L; // i.e F_CPU in MHz (16)
 #define clockCyclesToMicroseconds(a) ( (a) / clockCyclesPerMicrosecond )
 #define microsecondsToClockCycles(a) ( (a) * clockCyclesPerMicrosecond )
 
 // the prescaler is set so that timer0 ticks every 64 clock cycles, and the
 // the overflow handler is called every 256 ticks.
-static constexpr unsigned int US_PER_TIMER0_OVF = clockCyclesToMicroseconds(64 * 256);
+#define TIMER0_PRESCALER 64
+static constexpr uint8_t US_PER_TIMER0_TICK = clockCyclesToMicroseconds(TIMER0_PRESCALER); // 8us at 16Mhz and /64 prescaler
+static constexpr uint16_t US_PER_TIMER0_OVF = US_PER_TIMER0_TICK*256u;
 
 // the whole number of milliseconds per timer0 overflow
-static constexpr unsigned int MILLIS_INC = US_PER_TIMER0_OVF / 1000;
+static constexpr uint8_t MILLIS_INC = US_PER_TIMER0_OVF / 1000;
 
 // used to count fractional number of milliseconds per timer0 overflow
 // in TIMER0_OVF_VECT. Shift right by three to fit calculations into a byte.
 // Note for F_CPU of 8 and 16 MHz, this doesn't lose precision.
-static constexpr unsigned int FRACT_INC = (US_PER_TIMER0_OVF % 1000u) >> 3u;
-static constexpr unsigned int FRACT_MAX = 1000u >> 3u;
+static constexpr uint8_t FRACT_INC = (US_PER_TIMER0_OVF % 1000u) >> 3u;
+static constexpr uint8_t FRACT_MAX = 1000u >> 3u;
 
-static volatile uint64_t timer0_overflow_count = 0;
-static volatile uint64_t timer0_millis = 0;
+static volatile uint32_t timer0_overflow_count = 0;
+static volatile uint32_t timer0_millis = 0;
 
 void millis_timer0_callback() {
     // keep track of fractional timer values
@@ -46,7 +48,7 @@ void millis_timer0_callback() {
     timer0_overflow_count++;
 }
 
-unsigned long millis() {
+uint32_t millis() {
     // disable interrupts while we read timer0_millis or we might get an
     // inconsistent value (e.g. in the middle of a write to timer0_millis)
     uint8_t oldSREG = SREG;
@@ -56,35 +58,34 @@ unsigned long millis() {
     return m;
 }
 
-unsigned long micros() {
+uint32_t micros() {
     uint8_t oldSREG = SREG;
 
     cli();
     auto t = TCNT0;
     // add 1 if there's a pending overflow interrupt for timer 0
     auto m = timer0_overflow_count;
-    if (bitRead(TIFR0, TOV0) && (t < 255)) {
+    if (bitRead(TIFR0, TOV0) && (t != 255)) {
         m++;
     }
 
     SREG = oldSREG;
 
-    return ((m << 8u) + t) * (64 / clockCyclesPerMicrosecond);
+    // m*US_PER_TIMER0_OVF + t*clockCyclesToMicroSeconds(64);
+    // = (m*256 + t)*clockCyclesToMicroSeconds(64);
+
+    return ((m << 8u) + t) * US_PER_TIMER0_TICK;
 }
 
-/*
-void delay(unsigned long ms)
-{
+void delay(uint32_t ms) {
     auto start = micros();
-
     while (ms > 0) {
-        while ( ms > 0 && (micros() - start) >= 1000) {
+        while (ms > 0 && (micros() - start) >= 1000) {
             ms--;
             start += 1000;
         }
     }
 }
-*/
 
 /* Delay for the given number of microseconds.  Assumes a 1, 8, 12, 16, 20 or 24 MHz clock. */
 /*

@@ -27,30 +27,51 @@ void tone_gen_init() {
 	SREG = oldSREG;
 }
 
+static const uint16_t prescalars[] {0, 1, 8, 32, 64, 128, 256, 1024};
+static constexpr auto num_prescalars = sizeof(prescalars)/sizeof(prescalars[0]);
+
+
 void tone_gen_start(uint16_t approx_frequency) {
     // from datasheet, ordered so that the bits in the index are the same
     // as the bits needed to be set in TCCR2B to activate that prescaler
-	const uint16_t prescaler_values[] {0, 1, 8, 32, 64, 128, 256, 1024};
-	const auto num_prescalars = sizeof(prescaler_values)/sizeof(prescaler_values[0]);
 
+	// most of the time, we'll be using the largest prescaler.
+	// so just hardcode it
+
+    constexpr auto prescalar = 1024;
+    constexpr uint16_t base_frequency = F_CPU/prescalar/2;
+    constexpr uint8_t prescalar_bits = 0x7;
+	auto ocr1 = base_frequency/approx_frequency - 1;
+
+    constexpr auto prescalar2 = 256;
+    constexpr uint16_t base_frequency2 = F_CPU/prescalar2/2;
+    constexpr uint8_t prescalar_bits2 = 0x6;
+    auto ocr2 = base_frequency2/approx_frequency - 1;
+
+    // if we can use a smaller prescalar, (and manage an 8-bit count value),
+    // the frequency will be more accurate
+
+    auto ocr = static_cast<uint8_t>(ocr2 <= 255 ? ocr2 : ocr1);
+
+
+    /*
 	// the frequency that would be played if the prescaler
 	// were set to 1 and OCR set to zero
-	uint32_t base_frequency = F_CPU/approx_frequency/2;
-
-	uint8_t prescalar_bits = 0;
+    //uint32_t base_frequency = F_CPU/approx_frequency/2;
+    // scan through prescalars to find the best fit, with 8-bit count (OCR) value
     uint32_t test_ocr;
     uint16_t selected_prescaler;
-
-    // scan through prescalars to find the best fit, with 8-bit count (OCR) value
+	uint8_t prescalar_bits = 0;
 	do {
 		prescalar_bits++;
-		selected_prescaler = prescaler_values[prescalar_bits];
+		selected_prescaler = prescalars[prescalar_bits];
 		test_ocr = base_frequency/selected_prescaler - 1;
-	} while (test_ocr > 255 && selected_prescaler != prescaler_values[num_prescalars-1]);
+	} while (test_ocr > 255 && selected_prescaler != prescalars[num_prescalars-1]);
 
 	// just to be safe
     prescalar_bits &= 0b00000111u;
     auto ocr = static_cast<uint8_t>(test_ocr);
+    */
 
 	// set prescaler, and the reset level
 
@@ -59,8 +80,8 @@ void tone_gen_start(uint16_t approx_frequency) {
 
     uint8_t oldSREG = SREG;
     cli();
-	TCCR2B = new_tccr2b;
     OCR2A = ocr;
+    TCCR2B = new_tccr2b;
 	SREG = oldSREG;
 }
 

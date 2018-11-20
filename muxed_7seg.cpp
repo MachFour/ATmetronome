@@ -1,13 +1,8 @@
 #include "muxed_7seg.h"
 #include "defines.h"
-#include "helper.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
-
-
-static constexpr uint8_t MUXED_7SEG_NUM_DIGITS = 3;
-static constexpr uint8_t digit_pins[] {PORTB0, PORTB1, PORTB2};
 
 /*
  * muxed_7seg.cpp
@@ -20,18 +15,14 @@ static constexpr uint8_t digit_pins[] {PORTB0, PORTB1, PORTB2};
  * Note that the segments have to be negated as compared to how they in the
  * SEGMENT_DATA table, since the segment pins function to ground the LEDs
  */
-static uint8_t digit_segments[MUXED_7SEG_NUM_DIGITS];
-/*
- * Which pins are used for each of the three digits
- */
-static uint8_t digit_pin[MUXED_7SEG_NUM_DIGITS];
+static uint8_t digit_segments[MUXED_7SEG_NUM_DIGITS] {0};
 
 /*
  * Which digit of the display is currently lit (for multiplexing purposes)
  * Should always be between 0 and NUM_DIGITS-1.
  * Updated (incremented) each timer tick
  */
-static uint8_t current_digit;
+static uint8_t current_digit = 0;
 
 static bool digit_cycle_enabled = false;
 
@@ -207,12 +198,10 @@ void muxed_7seg_display_on() {
 }
 
 
-void muxed_7seg_init(uint8_t digit_pin_list[]) {
+void muxed_7seg_init() {
 	current_digit = 0;
 
-	for (int i = 0; i < MUXED_7SEG_NUM_DIGITS; i++) {
-        bitSet(DIGIT_DDR, digit_pin[i]);
-	}
+	bitSet(DIGIT_DDR, DIGIT_0, DIGIT_1, DIGIT_2);
 
 	// fixed PORTD for segment control
 	SEGMENT_DDR = 0b11111111;
@@ -230,15 +219,15 @@ static void cycle_digit() {
 
 	uint8_t old_digit = current_digit;
 	// wrap-around increment of digit index
-	uint8_t new_digit = (current_digit == MUXED_7SEG_NUM_DIGITS) ? 0_u8 : current_digit + 1_u8;
+	uint8_t new_digit = (old_digit < MUXED_7SEG_NUM_DIGITS - 1) ? old_digit + 1_u8 : 0_u8;
 
 	// switch which digit is powered, and update the segments appropriately
 	// the first digitalWrite is not needed if switch_off_active_digit() is called
-	bitClear(DIGIT_PORT, old_digit);
+	bitClear(DIGIT_PORT, digit_pin[old_digit]);
 
 	SEGMENT_PORT = digit_segments[new_digit];
 
-	bitSet(DIGIT_PORT, new_digit);
+	bitSet(DIGIT_PORT, digit_pin[new_digit]);
 
 	// save to global variable
 	current_digit = new_digit;
@@ -246,27 +235,28 @@ static void cycle_digit() {
 
 
 void muxed_7seg_show_number(int number, bool hide_leading_zeros) {
-	uint8_t available_digits;
+	uint8_t available_digits = MUXED_7SEG_NUM_DIGITS;
 
 	if (number < 0) {
 		// display a negative sign. Number of available digits is reduced by 1.
 		muxed_7seg_set_digit(MUXED_7SEG_NUM_DIGITS - 1, '-', false);
-		available_digits = MUXED_7SEG_NUM_DIGITS - 1;
+		available_digits--;
 		// set number to its unsigned equivalent.
 		// XXX If number is -2^(n-1), where n is the number of bits in an int,
 		// taking its negative will give 0.
 		number = - number;
-	} else {
-		available_digits = MUXED_7SEG_NUM_DIGITS;
 	}
 
 	for (uint8_t i = 0; i < available_digits; i++) {
+	    char next_rightmost_char;
+
 		if (number == 0 && i > 0 && hide_leading_zeros) {
-			muxed_7seg_set_digit(i, ' ', false);
+			next_rightmost_char = ' ';
 		} else {
-			char next_rightmost_digit = (char)(number % 10) + '0';
-			muxed_7seg_set_digit(i, next_rightmost_digit, false);
+            next_rightmost_char = '0' + (char)(number % 10);
 		}
+
+        muxed_7seg_set_digit(i, next_rightmost_char, false);
 		number = number / 10;
 	}
 }

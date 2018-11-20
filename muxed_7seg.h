@@ -1,7 +1,9 @@
 #ifndef MUXED_7SEG_H
 #define MUXED_7SEG_H
 
-#include <stdint.h>
+#include "defines.h"
+#include <avr/io.h>
+
 /* Public functions */
 
 /* Sets the given digit to display the given character. 0 refers to the LSB.
@@ -10,7 +12,7 @@
  * digit_index must be between 0 and MUXED_7SEG_NUM_DIGITS.
  */
 
-void muxed_7seg_set_digit(uint8_t digit_index, char c, bool with_dot);
+void muxed_7seg_set_digit(u8 digit_index, char c, bool with_dot);
 
 /*
  * Returns true if the library knows how to display the given character on

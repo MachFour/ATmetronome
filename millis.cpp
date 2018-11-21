@@ -4,7 +4,7 @@
 
 
 #include "millis.h"
-#include "defines.h"
+#include "byte_ops.h"
 #include <avr/interrupt.h>
 
 static constexpr uint8_t clockCyclesPerMicrosecond = F_CPU / 1000000L; // i.e F_CPU in MHz (16)

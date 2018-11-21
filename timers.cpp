@@ -1,6 +1,6 @@
 
 #include "timers.h"
-#include "defines.h"
+#include "byte_ops.h"
 
 #include <avr/io.h>
 #include <avr/cpufunc.h>

@@ -4,14 +4,14 @@
 #ifndef METRONOME_H
 #define METRONOME_H
 
-#include "defines.h"
+#include "byte_ops.h"
 #include <avr/io.h>
 
 
 // beep sound parameters
-#define BEEP_FREQ_MEASURE (554u << 1u)
-#define BEEP_FREQ_BEAT (440u << 1u)
-#define BEEP_FREQ_TICK (293u << 1u)
+#define BEEP_FREQ_MEASURE (554u)
+#define BEEP_FREQ_BEAT (440u)
+#define BEEP_FREQ_TICK (293u)
 #define BEEP_LENGTH_TOCKS 4
 
 // parameters for button controls, all in ms

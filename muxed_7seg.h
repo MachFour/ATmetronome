@@ -1,7 +1,7 @@
 #ifndef MUXED_7SEG_H
 #define MUXED_7SEG_H
 
-#include "defines.h"
+#include "byte_ops.h"
 #include <avr/io.h>
 
 /* Public functions */

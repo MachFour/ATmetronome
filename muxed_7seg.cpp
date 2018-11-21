@@ -1,5 +1,6 @@
 #include "muxed_7seg.h"
-#include "defines.h"
+#include "byte_ops.h"
+#include "pindefs.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -271,7 +272,7 @@ static void switch_off_active_digit() {
 void muxed_7seg_display_off() {
 	// save and restore status flag, and prevent interrupts
 	// while this function executes
-	uint8_t oldSREG = SREG;
+	auto oldSREG = SREG;
 	cli();
 
 	digit_cycle_enabled = false;

@@ -11,7 +11,7 @@ add_compile_definitions(F_CPU=8000000U)
 add_compile_definitions(__AVR_ATmega328P__)
 
 add_executable(metronome
-        defines.h
+        byte_ops.h
         Metronome.cpp
         Metronome.h
         muxed_7seg.cpp
@@ -24,4 +24,4 @@ add_executable(metronome
         millis.cpp
         main.cpp
         SoftTimer.cpp
-        SoftTimer.h)
+        SoftTimer.h pindefs.h)

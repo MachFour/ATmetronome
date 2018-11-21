@@ -1,5 +1,5 @@
 #include "Metronome.h"
-#include "defines.h"
+#include "byte_ops.h"
 
 
 #include <avr/interrupt.h>

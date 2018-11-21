@@ -1,7 +1,7 @@
 #ifndef TONE_GEN_H
 #define TONE_GEN_H
 
-#include <stdint.h>
+#include "byte_ops.h"
 
 struct ToneConfig {
     uint8_t prescalar_bits;
@@ -22,9 +22,9 @@ constexpr ToneConfig tone_gen_makeConfig(uint16_t approximate_frequency) {
 
     // find smallest prescalar that gives a count value <= 255
     for (uint8_t index = num_prescalars - 1_u8; index > 1_u8; --index) {
-        uint16_t prescalar = prescalars[index];
-        uint16_t next_prescalar_bits = index - 1_u8;
-        uint16_t next_prescalar = prescalars[next_prescalar_bits];
+        auto prescalar = prescalars[index];
+        auto next_prescalar_bits = index - 1_u8;
+        auto next_prescalar = prescalars[next_prescalar_bits];
         if (base_frequency / next_prescalar > 255) {
             // next prescalar is too fast to fit the count value in 8 bits
             uint8_t count_value = ((uint8_t)(base_frequency / prescalar)) - 1_u8;

@@ -1,4 +1,5 @@
-#include "defines.h"
+#include "byte_ops.h"
+#include "pindefs.h"
 #include "tone_gen.h"
 
 #include <avr/interrupt.h>
@@ -55,9 +56,9 @@ void tone_gen_start(ToneConfig toneConfig) {
 	// set prescaler, and the reset level
 
     // can't just OR in new bits as we need to clear prescalar bits that should now be 0
-    uint8_t new_tccr2b = (uint8_t)(TCCR2B & (uint8_t) 0b11111000u) | toneConfig.prescalar_bits;
+    auto new_tccr2b = byteOr(TCCR2B & 0xf8u, toneConfig.prescalar_bits);
 
-    uint8_t oldSREG = SREG;
+    auto oldSREG = SREG;
     cli();
     OCR2A = toneConfig.count_value;
     TCCR2B = new_tccr2b;

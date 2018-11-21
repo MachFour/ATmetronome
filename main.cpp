@@ -7,7 +7,8 @@
 #include "muxed_7seg.h"
 #include "timers.h"
 #include "tone_gen.h"
-#include "defines.h"
+#include "byte_ops.h"
+#include "pindefs.h"
 #include "millis.h"
 #include "SoftTimer.h"
 
@@ -194,10 +195,13 @@ ISR(TIMER0_OVF_vect) {
  * Setup switches as input pullup
  */
 static void input_setup() {
+    // just make whole of INPUT register input pullups
+    INPUT_DDR = 0;
+    INPUT_PORT = 0b01111111;
     // set 0 to configure as input
-    bitClear(INPUT_DDR, SWITCHC, SWITCHD, SWITCHU);
+    //bitClear(INPUT_DDR, SWITCHC, SWITCHD, SWITCHU);
     // write a 1 to set as pullup
-    bitSet(INPUT_PORT, SWITCHC, SWITCHD, SWITCHU);
+    //bitSet(INPUT_PORT, SWITCHC, SWITCHD, SWITCHU);
 }
 
 

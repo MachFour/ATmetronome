@@ -4,9 +4,9 @@
 
 #include "Metronome.h"
 // kludge to get stuff to work together
-#include "muxed_7seg.h"
+#include "SevenSeg.h"
 #include "timers.h"
-#include "tone_gen.h"
+#include "ToneGen.h"
 #include "byte_ops.h"
 #include "pindefs.h"
 #include "millis.h"
@@ -20,11 +20,15 @@
 
 static Metronome m;
 static SoftTimer tickSoundTimer;
+static ToneGen t;
+static SevenSeg sevenSeg;
+
 static bool displaying_bpm = false;
+static uint8_t buttonsState = 0;
+static uint8_t lastButtonsState = 0;
 
 // At 16MHz / 64x prescaler, each tick of the soft timer takes 256*8 us,
 // or 2.048 ms (see millis.cpp).
-// So for a ~ 80ms countdown, we want to set a count of 40
 inline static void setTickSoundTimer() {
     tickSoundTimer.setCount(30);
 }
@@ -32,6 +36,12 @@ inline static void setTickSoundTimer() {
 /*
  * Utility functions
  */
+
+// call from PCINT interrupt handler
+void onInputButtonsChange() {
+    lastButtonsState = buttonsState;
+    buttonsState = INPUT_REGISTER;
+}
 
 // negates value, since pins are configured as INPUT_PULLUP
 inline static bool pressed(uint8_t input_pin) {
@@ -75,21 +85,22 @@ inline static void still_alive2() {
  * Displays the BPM on the 7 segment displays
  */
 inline static void display_bpm(uint8_t bpm) {
-    muxed_7seg_show_number((int)bpm, false);
+    auto intBpm = static_cast<int>(bpm);
+    sevenSeg.showNumber(intBpm, false);
     displaying_bpm = true;
 }
 
 static void displaySubdivisions(uint8_t subdivision) {
-    muxed_7seg_set_digit(2, 'd', WITH_DOT);
-    muxed_7seg_set_digit(1, ' ', WITHOUT_DOT);
-    muxed_7seg_set_digit(0, '0' + (char)(subdivision), WITHOUT_DOT);
+    sevenSeg.setDigit(2, 'd', WITH_DOT);
+    sevenSeg.setDigit(1, ' ', WITHOUT_DOT);
+    sevenSeg.setDigit(0, '0' + (char)(subdivision), WITHOUT_DOT);
     displaying_bpm = false;
 }
 
 static void displayMeasureLength(uint8_t measureLength) {
-    muxed_7seg_set_digit(2, 'b', WITH_DOT);
-    muxed_7seg_set_digit(1, '0' + (char)(measureLength / 10), WITHOUT_DOT);
-    muxed_7seg_set_digit(0, '0' + (char)(measureLength % 10), WITHOUT_DOT);
+    sevenSeg.setDigit(2, 'b', WITH_DOT);
+    sevenSeg.setDigit(1, '0' + (char)(measureLength / 10), WITHOUT_DOT);
+    sevenSeg.setDigit(0, '0' + (char)(measureLength % 10), WITHOUT_DOT);
     displaying_bpm = false;
 }
 
@@ -107,7 +118,7 @@ static void do_button_action_repeatable(uint8_t input_pin, void (*action)(), uin
     // pause to allow single stepping
     const long current_time = millis();
     while (pressed(input_pin) && millis() - current_time < INCREMENT_REPEAT_DELAY) {
-        delay(10);
+        _delay_ms(10);
     }
     // then repeat action at repeat rate
     while (pressed(input_pin)) {
@@ -130,29 +141,31 @@ static void onBeatSubdivisionChange(uint8_t subdivision) {
 
 static void onBeat(uint8_t beat_num, uint8_t beats_per_measure) {
     if (beat_num == 0 && beats_per_measure > 0) {
-        constexpr auto bar_tone = tone_gen_makeConfig(BEEP_FREQ_MEASURE);
-        tone_gen_start(bar_tone);
+        constexpr auto bar_tone = ToneGen::makeConfig(BEEP_FREQ_MEASURE);
+        t.start(bar_tone);
         setTickSoundTimer();
         led_on();
     } else {
         // next beat
-        constexpr auto beat_tone = tone_gen_makeConfig(BEEP_FREQ_BEAT);
-        tone_gen_start(beat_tone);
+        constexpr auto beat_tone = ToneGen::makeConfig(BEEP_FREQ_BEAT);
+        t.start(beat_tone);
         setTickSoundTimer();
     }
 }
 
 static void onTick(uint8_t tick_num, uint8_t ticks_per_beat) {
-    if (tick_num != 1) {
-        constexpr auto tick_tone = tone_gen_makeConfig(BEEP_FREQ_TICK);
-        tone_gen_start(tick_tone);
+    // don't play a sound on the actual beat
+    //if (tick_num > 0)
+    {
+        constexpr auto tick_tone = ToneGen::makeConfig(BEEP_FREQ_TICK);
+        t.start(tick_tone);
         setTickSoundTimer();
     }
 }
 
 // used to turn off LED and tone after a beat or tick
 static void postTickCallback() {
-    tone_gen_stop();
+    t.stop();
     led_off();
 }
 
@@ -172,14 +185,12 @@ static void incrementSubdivision() {
     m.incrementTicks();
 }
 
-
-
 ISR(TIMER0_COMPA_vect) {
-    muxed_7seg_timer_high_callback();
+    sevenSeg.timerHighCallback();
 }
 
 ISR(TIMER0_COMPB_vect) {
-    muxed_7seg_timer_low_callback();
+    sevenSeg.timerLowCallback();
 }
 
 ISR(TIMER1_COMPA_vect) {
@@ -198,19 +209,23 @@ static void input_setup() {
     // just make whole of INPUT register input pullups
     INPUT_DDR = 0;
     INPUT_PORT = 0b01111111;
-    // set 0 to configure as input
-    //bitClear(INPUT_DDR, SWITCHC, SWITCHD, SWITCHU);
-    // write a 1 to set as pullup
-    //bitSet(INPUT_PORT, SWITCHC, SWITCHD, SWITCHU);
 }
 
-
 static void setup() {
+    // disable ADC, TWI, SPI, USART
+    // enable timer0-2, disable TWI, SPI, UART0, ADC
+    /*
+     * PRR
+     * bit 7                                              bit0
+     * PRTWI  PRTIM2 PRTIM0    -    PRTIM1 PRSPI  PRUSART PRADC
+     */
+    PRR = 0b10000111;
+
     timer0_1_hold_reset();
     timer0_setup(16, 128);
     // timer 2
-    tone_gen_init();
-    muxed_7seg_init();
+    t.setup();
+    sevenSeg.setup();
 
     input_setup();
     led_setup();
@@ -218,13 +233,6 @@ static void setup() {
     /* Disable unused peripherals */
     ADCSRA = 0; // ADC
     ADCSRB = 0; // analogue comparator
-    /* remove clock signal to peripherals */
-    //PRR = 0;
-    power_adc_disable();
-    power_usart0_disable();
-    // remove this for debugWIRE work
-    power_spi_disable();
-    power_twi_disable();
 
 
     // set up metronome
@@ -237,6 +245,7 @@ static void setup() {
 
     tickSoundTimer.setAction(postTickCallback);
 }
+
 
 // poll inputs -> this should probably be done with interrupts
 static void loop() {
@@ -259,7 +268,7 @@ static void loop() {
         if (!displaying_bpm) {
             display_bpm(m.getBpm());
         }
-        delay(20);
+        _delay_ms(20);
     }
 
 }
@@ -267,8 +276,8 @@ static void loop() {
 int main() {
     setup();
     timer0_1_start();
-
     m.start();
+    sevenSeg.displayOn();
 
     // the magical command
     sei();

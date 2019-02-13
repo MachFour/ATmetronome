@@ -69,7 +69,7 @@ void Metronome::reset() {
 
     cli();
     beat_num = 0;
-    tick_num = 1;
+    tick_num = 0;
     TCNT1 = 0;
 
     SREG = sreg;
@@ -151,7 +151,7 @@ uint8_t Metronome::getBeatSubdivisions() const {
  * count on the first 'tock_period_remainder' times in every 'bpm' tocks.
  */
 
-inline uint16_t Metronome::calc_timer_count() {
+uint16_t Metronome::calc_timer_count() {
     if (tock_num_modulo_bpm < tock_period_remainder) {
         // if there is a rounding down error in tock_period, we should
         // initially count by 1 extra, then go back to tock_period_floor - 1.
@@ -162,7 +162,7 @@ inline uint16_t Metronome::calc_timer_count() {
     }
 }
 
-inline void Metronome::timer_count_dynamic_adjust() {
+void Metronome::timer_count_dynamic_adjust() {
     // Check if we reached the switch-over threshold, otherwise it's the same
     // TODO have instance variable to record which side of the threshold we were on
     if (tock_num_modulo_bpm == 0 || tock_num_modulo_bpm == tock_period_remainder) {
@@ -217,7 +217,7 @@ void Metronome::update_timer() {
     SREG = old_SREG;
 }
 
-inline void Metronome::beat() {
+void Metronome::beat() {
     onBeat(beat_num, beats_per_measure);
     beat_num++;
     // need >= check (not just ==) in case beats_per_measure = 0
@@ -226,11 +226,11 @@ inline void Metronome::beat() {
     }
 }
 
-inline void Metronome::tick() {
+void Metronome::tick() {
     onTick(tick_num, ticks_per_beat);
     tick_num++;
-    if (tick_num > ticks_per_beat) {
-        tick_num = 1;
+    if (tick_num >= ticks_per_beat) {
+        tick_num = 0;
     }
 }
 
@@ -255,11 +255,11 @@ static const uint8_t tocks_for_ticks[] {0, 60, 30, 20, 15, 12, 10};
 
 void Metronome::tock() {
     /* Metronome event checks */
-    if (tock_num_modulo_ticks == 0) {
-        tick();
-    }
     if (tock_num_modulo_beat == 0) {
         beat();
+    } else // TODO be able to have both a beat and a tick at once
+    if (tock_num_modulo_ticks == 0) {
+        tick();
     }
 
     tock_num_modulo_beat++;

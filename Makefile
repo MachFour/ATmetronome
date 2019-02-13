@@ -12,6 +12,23 @@ HEX_MAXIMUM_SIZE = 28672
 MCU = atmega328p
 F_CPU = 8000000L
 
+
+#uno.bootloader.tool=avrdude
+#uno.bootloader.low_fuses=0xFF
+#uno.bootloader.high_fuses=0xDE
+#uno.bootloader.extended_fuses=0xFD
+#uno.bootloader.unlock_bits=0x3F
+#uno.bootloader.lock_bits=0x0F
+#ISP_EXT_FUSE=0xfd
+ISP_LOCK_FUSE_PRE=0x3f
+ISP_LOCK_FUSE_POST=0x0f
+ISP_LOW_FUSE=0xff
+ISP_HIGH_FUSE=0xde
+# change brown out level to ~1.8V: BODLEVEL[2:0]=110
+# 0b11111110
+ISP_EXT_FUSE=0xfe
+BOOTLOADER_FILE=optiboot/optiboot_atmega328.hex
+
 # optimise dat
 OPTIMIZATION_LEVEL=2
 

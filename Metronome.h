@@ -85,6 +85,10 @@ class Metronome {
     typedef void (*oneParamCallback)(uint8_t);
     typedef void (*twoParamCallback)(uint8_t, uint8_t);
 
+    static constexpr uint8_t first_tick = 1;
+    static constexpr uint8_t first_beat = 0;
+
+
 private:
     twoParamCallback onBeat;
     twoParamCallback onTick;
@@ -107,7 +111,7 @@ private:
 
     /* where we are in the measure */
     uint8_t beat_num;
-    /* Which subdivision we are on. Note that it is 1- indexed! */
+    /* Which subdivision we are on.*/
     uint8_t tick_num;
 
     // Counts once from 0 to TOCKS_PER_BEAT - 1 every beat
@@ -151,9 +155,9 @@ public:
         , onTicksChanged(dummyCallback1)
         , bpm(0)
         , beats_per_measure(0)
-        , ticks_per_beat(0)
+        , ticks_per_beat(1)
         , beat_num(0)
-        , tick_num(1) // !!!
+        , tick_num(0) // !!!
         , tock_num_modulo_beat(0)
         , tock_num_modulo_ticks(0)
         , tock_period_floor(0)

@@ -9,6 +9,7 @@
 
 void timer0_1_start() {
     // release prescaler reset, start timer0 and timer1
+	bitClear(GTCCR, PSRSYNC);
 	bitClear(GTCCR, TSM);
 }
 
@@ -119,11 +120,11 @@ void timer0_setup(uint8_t ocr0a, uint8_t ocr0b) {
 	OCR0B = ocr0b;
 
 	// clear previous interrupt flags (shouldn't really be necessary)
-	/*
+    /*
 	bitSet(TIFR0, OCF0B);
 	bitSet(TIFR0, OCF0A);
 	bitSet(TIFR0, TOV0);
-	*/
+    */
 
 	// enable interrupts on output compare matches A and B, and on overflow.
 	TIMSK0 = 0;

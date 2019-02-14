@@ -11,7 +11,8 @@
 // beep sound parameters
 #define BEEP_FREQ_MEASURE (554u)
 #define BEEP_FREQ_BEAT (440u)
-#define BEEP_FREQ_TICK (293u)
+#define BEEP_FREQ_SUB (293u)
+//#define BEEP_FREQ_SUB (100u)
 #define BEEP_LENGTH_TOCKS 4
 
 // parameters for button controls, all in ms
@@ -52,7 +53,7 @@
  *        = fOCR1A/30
  *        = 8000000/(16*30*(1+OCR1A
  *        = 50000/(3*(1 + OCR1A)).
- * For 1BPM, f_beat = 1/60, so 1 + OCR1A = 50000*60/3 = 1000000
+ * For 1BPM, f_beat = 1/60 Hz, so 1 + OCR1A = 50000*60/3 = 1000000
  * thus to get an arbitrary integer BPM, we need to divide 1000000 by the BPM,
  * correct for any integer division error, and then subtract 1
  */
@@ -79,48 +80,63 @@ static constexpr uint16_t TIMER1_HIGHEST_COUNT = 65535;
 #define MAX_TICKS_PER_BEAT 6
 
 
+/* how many tocks happen before we play a subdivided beat 'tick'
+ * 1 tick  per beat -> 60 tocks per tick
+ * 2 ticks per beat -> 30 tocks per tick
+ * 3 ticks per beat -> 20 tocks per tick
+ * 4 ticks per beat -> 15 tocks per tick
+ * 5 ticks per beat -> 12 tocks per tick
+ * 6 ticks per beat -> 10 tocks per subBeat
+ * Example: beat_divisor = 3
+ *              |*********|*********|*********|*********|*********|*********|
+ * tocks>       0         10        20        30        40        50        60->0
+ * ticks/beats> B                   T                   T                   B
+ * Example: beat_divisor = 4
+ *              |**************|**************|**************|**************|
+ * tocks>       0              15             30             45             60->0
+ * ticks/beats> B              T              T              T              B
+ */
+// 1- indexed, first entry is filler
+static constexpr uint8_t tocks_per_subbeat[] {0, 60, 30, 20, 15, 12, 10};
+
 // int indicates which beat of the measure it is
 
 class Metronome {
     typedef void (*oneParamCallback)(uint8_t);
     typedef void (*twoParamCallback)(uint8_t, uint8_t);
 
-    static constexpr uint8_t first_tick = 1;
-    static constexpr uint8_t first_beat = 0;
-
-
 private:
-    bool running;
+    volatile bool running;
 
     twoParamCallback onBeat;
-    twoParamCallback onTick;
+    twoParamCallback onSubBeat;
     oneParamCallback onBpmChanged;
     oneParamCallback onBeatsChanged;
     oneParamCallback onTicksChanged;
 
     /* How fast a 'crotchet' is in beats per minute */
-    uint8_t bpm;
+    volatile uint8_t bpm;
     /* A measure is like a bar, and the first beat of each measure is accented.
      * Has no other effect other than 'accent the nth crotchet'
      * If this is set to zero then no accents are played.
      */
-    uint8_t beats_per_measure;
+    volatile uint8_t beats_per_measure;
     /* Each beat is evenly subdivided into 'ticks'
      * Used to play quavers, semiquavers, triplets etc.
      * Patten of accents can be programmed using the DIP switches.
      */
-    uint8_t ticks_per_beat;
+    volatile uint8_t beat_divisor;
 
     /* where we are in the measure */
-    uint8_t beat_num;
+    volatile uint8_t beat_num;
     /* Which subdivision we are on.*/
-    uint8_t tick_num;
+    volatile uint8_t subbeat_num;
 
     // Counts once from 0 to TOCKS_PER_BEAT - 1 every beat
-    uint8_t tock_num_modulo_beat;
-    // Counts from 0 to tocks_for_ticks[ticks_per_beat] - 1 several times per beat
-    // (The number of times this happens is precisely ticks_per_beat)
-    uint8_t tock_num_modulo_ticks;
+    volatile uint8_t tock_num_modulo_beat;
+    // Counts from 0 to tocks_per_subbeat[beat_divisor] - 1 several times per beat
+    // (The number of times this happens is precisely beat_divisor)
+    volatile uint8_t tock_num_modulo_subbeat;
 
     /* These variables are used to control BPM (actually, tock) duration
      * via timer 1 resets. In order to remove error from integer division,
@@ -144,25 +160,25 @@ private:
      *      to tock_period_floor+1 initially, and then reduce it by 1 when
      *      tock_num_modulo_bpm reaches tock_period_remainder.
      */
-    uint16_t tock_period_floor;
-    uint8_t tock_period_remainder; // less than BPM
-    uint8_t tock_num_modulo_bpm; // also less than BPM
+    volatile uint16_t tock_period_floor;
+    volatile uint8_t tock_period_remainder; // less than BPM
+    volatile uint8_t tock_num_modulo_bpm; // also less than BPM
 
 public:
     Metronome() noexcept:
           running(false)
         , onBeat(dummyCallback2)
-        , onTick(dummyCallback2)
+        , onSubBeat(dummyCallback2)
         , onBpmChanged(dummyCallback1)
         , onBeatsChanged(dummyCallback1)
         , onTicksChanged(dummyCallback1)
         , bpm(0)
         , beats_per_measure(0)
-        , ticks_per_beat(1)
+        , beat_divisor(1)
         , beat_num(0)
-        , tick_num(0) // !!!
+        , subbeat_num(0)
         , tock_num_modulo_beat(0)
-        , tock_num_modulo_ticks(0)
+        , tock_num_modulo_subbeat(0)
         , tock_period_floor(0)
         , tock_period_remainder(0)
         , tock_num_modulo_bpm(0)
@@ -184,7 +200,7 @@ public:
 
     // parameters: current beat, total beats
     void setBeatEventListener(const twoParamCallback& f) { onBeat = f; }
-    void setTickEventListener(const twoParamCallback& f) { onTick = f; }
+    void setTickEventListener(const twoParamCallback& f) { onSubBeat = f; }
     void setBpmChangeCallback(const oneParamCallback& f) { onBpmChanged = f; }
     void setBeatsChangeCallback(const oneParamCallback& f) { onBeatsChanged = f; }
     void setTicksChangeCallback(const oneParamCallback& f) { onTicksChanged = f; }
@@ -199,7 +215,7 @@ public:
 
 private:
 
-    void tick();
+    void subBeat();
     void beat();
     void update_timer();
     static void timerSetup();

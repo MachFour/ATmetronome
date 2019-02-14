@@ -27,7 +27,7 @@ static bool displaying_bpm = false;
 static uint8_t buttonsState = 0;
 static uint8_t lastButtonsState = 0;
 
-// At 16MHz / 64x prescaler, each tick of the soft timer takes 256*8 us,
+// At 16MHz / 64x prescaler, each subBeat of the soft timer takes 256*8 us,
 // or 2.048 ms (see millis.cpp).
 inline static void setTickSoundTimer() {
     tickSoundTimer.setCount(30);
@@ -158,13 +158,13 @@ static void onTick(uint8_t tick_num, uint8_t ticks_per_beat) {
     // TODO I don't know why this works, rather than a != 0 check
     if (tick_num != 0)
     {
-        constexpr auto tick_tone = ToneGen::makeConfig(BEEP_FREQ_TICK);
+        constexpr auto tick_tone = ToneGen::makeConfig(BEEP_FREQ_SUB);
         t.start(tick_tone);
         setTickSoundTimer();
     }
 }
 
-// used to turn off LED and tone after a beat or tick
+// used to turn off LED and tone after a beat or subBeat
 static void postTickCallback() {
     t.stop();
     led_off();

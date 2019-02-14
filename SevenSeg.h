@@ -16,7 +16,7 @@ private:
     /*
      * Which digit of the display is currently lit (for multiplexing purposes)
      * Should always be between 0 and NUM_DIGITS-1.
-     * Updated (incremented) each timer tick
+     * Updated (incremented) each timer subBeat
      */
     uint8_t currentDigit;
     /*

@@ -45,7 +45,9 @@ void Metronome::setMeasureLength(uint8_t newValue) {
 }
 
 void Metronome::setBeatDivision(uint8_t newValue) {
-    ticks_per_beat = newValue;
+    beat_divisor = newValue;
+    // this corrects the subbeat timing for the current beat
+    tock_num_modulo_subbeat = tock_num_modulo_beat % tocks_per_subbeat[beat_divisor];
     onTicksChanged(newValue);
 
 }
@@ -55,7 +57,7 @@ void Metronome::incrementBeats() {
 }
 
 void Metronome::incrementTicks() {
-    auto new_value = change(ticks_per_beat, 1_u8, MIN_TICKS_PER_BEAT, MAX_TICKS_PER_BEAT);
+    auto new_value = change(beat_divisor, 1_u8, MIN_TICKS_PER_BEAT, MAX_TICKS_PER_BEAT);
     setBeatDivision(new_value);
 }
 
@@ -83,7 +85,7 @@ void Metronome::setup() {
     timerSetup();
 
     beats_per_measure = 4;
-    ticks_per_beat = 1;
+    beat_divisor = 1;
     bpm = 105;
     update_timer();
 
@@ -92,10 +94,10 @@ void Metronome::setup() {
 void Metronome::reset() {
     // trigger new measure on next beat
     beat_num = 0;
-    tick_num = 0;
+    subbeat_num = 0;
     tock_num_modulo_beat = 0;
     tock_num_modulo_bpm = 0;
-    tock_num_modulo_ticks = 0;
+    tock_num_modulo_subbeat = 0;
     TCNT1 = 0;
 }
 
@@ -130,12 +132,8 @@ void Metronome::beat() {
     }
 }
 
-void Metronome::tick() {
-    onTick(tick_num, ticks_per_beat);
-    tick_num++;
-    if (tick_num >= ticks_per_beat) {
-        tick_num = 0;
-    }
+void Metronome::subBeat() {
+    onSubBeat(subbeat_num, beat_divisor);
 }
 
 
@@ -148,7 +146,7 @@ uint8_t Metronome::getMeasureLength() const {
 }
 
 uint8_t Metronome::getBeatSubdivisions() const {
-    return ticks_per_beat;
+    return beat_divisor;
 }
 
 /*
@@ -230,44 +228,31 @@ void Metronome::update_timer() {
     SREG = old_SREG;
 }
 
-/* how many tocks happen before we play a subdivided beat 'tick'
- * 1 tick  per beat -> 60 tocks per tick
- * 2 ticks per beat -> 30 tocks per tick
- * 3 ticks per beat -> 20 tocks per tick
- * 4 ticks per beat -> 15 tocks per tick
- * 5 ticks per beat -> 12 tocks per tick
- * 6 ticks per beat -> 10 tocks per tick
- * Example: ticks_per_beat = 3
- *              |*********|*********|*********|*********|*********|*********|
- * tocks>       0         10        20        30        40        50        60->0
- * ticks/beats> B                   T                   T                   B
- * Example: ticks_per_beat = 4
- *              |**************|**************|**************|**************|
- * tocks>       0              15             30             45             60->0
- * ticks/beats> B              T              T              T              B
- */
-// 1- indexed, first entry is filler
-static const uint8_t tocks_for_ticks[] {0, 60, 30, 20, 15, 12, 10};
 
 void Metronome::tock() {
     /* Metronome event checks */
-    // check if we've reached the next tick or beat
+    // check if we've reached the next subBeat or beat
     if (tock_num_modulo_beat == 0) {
         beat();
+        subbeat_num = 0;
     }
-    if (tock_num_modulo_ticks == 0) {
-        tick();
+    if (tock_num_modulo_subbeat == 0) {
+        subBeat();
+        subbeat_num++;
+        if (subbeat_num >= beat_divisor) {
+            subbeat_num = 0;
+        }
     }
 
     tock_num_modulo_beat++;
-    tock_num_modulo_ticks++;
+    tock_num_modulo_subbeat++;
 
-    if (tock_num_modulo_ticks >= tocks_for_ticks[ticks_per_beat]) {
-        tock_num_modulo_ticks = 0;
+    if (tock_num_modulo_subbeat >= tocks_per_subbeat[beat_divisor]) {
+        tock_num_modulo_subbeat = 0;
     }
     if (tock_num_modulo_beat >= TOCKS_PER_BEAT) {
         tock_num_modulo_beat = 0;
-        tock_num_modulo_ticks = 0;
+        tock_num_modulo_subbeat = 0;
     }
 
     /* BPM correction calculations */

@@ -14,14 +14,17 @@ add_executable(metronome
         byte_ops.h
         Metronome.cpp
         Metronome.h
-        muxed_7seg.cpp
-        muxed_7seg.h
-        timers.cpp
+        SevenSeg.cpp
         timers.h
-        tone_gen.cpp
-        tone_gen.h
+        ToneGen.cpp
+        ToneGen.h
         millis.h
         millis.cpp
         main.cpp
         SoftTimer.cpp
-        SoftTimer.h pindefs.h)
+        SoftTimer.h
+        pindefs.h
+        SevenSeg.cpp
+        SevenSeg.h
+        bitops.h
+        )

@@ -155,7 +155,8 @@ static void onBeat(uint8_t beat_num, uint8_t beats_per_measure) {
 
 static void onTick(uint8_t tick_num, uint8_t ticks_per_beat) {
     // don't play a sound on the actual beat
-    //if (tick_num > 0)
+    // TODO I don't know why this works, rather than a != 0 check
+    if (tick_num != 0)
     {
         constexpr auto tick_tone = ToneGen::makeConfig(BEEP_FREQ_TICK);
         t.start(tick_tone);
@@ -212,13 +213,16 @@ static void input_setup() {
 }
 
 static void setup() {
-    // disable ADC, TWI, SPI, USART
-    // enable timer0-2, disable TWI, SPI, UART0, ADC
+    /* Disable unused peripherals */
+    ADCSRA = 0; // ADC
+    ADCSRB = 0; // analogue comparator
     /*
      * PRR
      * bit 7                                              bit0
      * PRTWI  PRTIM2 PRTIM0    -    PRTIM1 PRSPI  PRUSART PRADC
      */
+    // disable ADC, TWI, SPI, USART
+    // enable timer0-2, disable TWI, SPI, UART0, ADC
     PRR = 0b10000111;
 
     timer0_1_hold_reset();
@@ -230,9 +234,6 @@ static void setup() {
     input_setup();
     led_setup();
 
-    /* Disable unused peripherals */
-    ADCSRA = 0; // ADC
-    ADCSRB = 0; // analogue comparator
 
 
     // set up metronome
@@ -262,14 +263,23 @@ static void loop() {
         } else {
             do_button_action_repeatable(SWITCHD, decrementBpm, BPM_INCREMENT_REPEAT_RATE);
         }
-    } else if (pressed(SWITCHC)) {
-        // TODO just rotate through displaying the different parameters;
     } else {
-        if (!displaying_bpm) {
-            display_bpm(m.getBpm());
+        // this branch has delay
+        if (pressed(SWITCHC)) {
+            // TODO just rotate through displaying the different parameters;
+        } else if (pressed(SWITCHS)) {
+            m.toggle();
+            // wait until button unpressed
+            while (pressed(SWITCHS));
+        } else {
+            if (!displaying_bpm) {
+                display_bpm(m.getBpm());
+            }
         }
         _delay_ms(20);
     }
+
+
 
 }
 

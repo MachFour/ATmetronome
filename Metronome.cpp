@@ -59,43 +59,6 @@ void Metronome::incrementTicks() {
     setBeatDivision(new_value);
 }
 
-void Metronome::start() {
-    // enable 8x I/O clock prescaler for timer1
-    bitSet(TCCR1B, CS11);
-}
-
-void Metronome::reset() {
-    auto sreg = SREG;
-
-    cli();
-    beat_num = 0;
-    tick_num = 0;
-    TCNT1 = 0;
-
-    SREG = sreg;
-}
-
-void Metronome::pause() {
-    // disconnect prescaler
-    bitClear(TCCR1B, CS11);
-
-}
-
-void Metronome::setBeatEventListener(const Metronome::twoParamCallback &f) {
-    onBeat = f;
-}
-void Metronome::setTickEventListener(const Metronome::twoParamCallback &f) {
-    onTick = f;
-}
-void Metronome::setBpmChangeCallback(const Metronome::oneParamCallback &f) {
-    onBpmChanged = f;
-}
-void Metronome::setBeatsChangeCallback(const Metronome::oneParamCallback &f) {
-    onBeatsChanged = f;
-}
-void Metronome::setTicksChangeCallback(const Metronome::oneParamCallback &f) {
-    onTicksChanged = f;
-}
 
 void Metronome::timerSetup() {
 // call timer0_1_hold_reset() before this and timer_0_1_start() after
@@ -125,6 +88,56 @@ void Metronome::setup() {
     update_timer();
 
 }
+
+void Metronome::reset() {
+    // trigger new measure on next beat
+    beat_num = 0;
+    tick_num = 0;
+    tock_num_modulo_beat = 0;
+    tock_num_modulo_bpm = 0;
+    tock_num_modulo_ticks = 0;
+    TCNT1 = 0;
+}
+
+void Metronome::start() {
+    auto sreg = SREG;
+    cli();
+
+    reset();
+    // trigger initial tock
+    //tock();
+
+    // enable 8x I/O clock prescaler for timer1
+    bitSet(TCCR1B, CS11);
+    SREG = sreg;
+
+    running = true;
+}
+
+void Metronome::stop() {
+    // disconnect prescaler
+    bitClear(TCCR1B, CS11);
+    running = false;
+
+}
+
+void Metronome::beat() {
+    onBeat(beat_num, beats_per_measure);
+    beat_num++;
+    // need >= check (not just ==) in case beats_per_measure = 0
+    if (beat_num >= beats_per_measure) {
+        beat_num = 0;
+    }
+}
+
+void Metronome::tick() {
+    onTick(tick_num, ticks_per_beat);
+    tick_num++;
+    if (tick_num >= ticks_per_beat) {
+        tick_num = 0;
+    }
+}
+
 
 uint8_t Metronome::getBpm() const {
     return bpm;
@@ -217,23 +230,6 @@ void Metronome::update_timer() {
     SREG = old_SREG;
 }
 
-void Metronome::beat() {
-    onBeat(beat_num, beats_per_measure);
-    beat_num++;
-    // need >= check (not just ==) in case beats_per_measure = 0
-    if (beat_num >= beats_per_measure) {
-        beat_num = 0;
-    }
-}
-
-void Metronome::tick() {
-    onTick(tick_num, ticks_per_beat);
-    tick_num++;
-    if (tick_num >= ticks_per_beat) {
-        tick_num = 0;
-    }
-}
-
 /* how many tocks happen before we play a subdivided beat 'tick'
  * 1 tick  per beat -> 60 tocks per tick
  * 2 ticks per beat -> 30 tocks per tick
@@ -255,9 +251,10 @@ static const uint8_t tocks_for_ticks[] {0, 60, 30, 20, 15, 12, 10};
 
 void Metronome::tock() {
     /* Metronome event checks */
+    // check if we've reached the next tick or beat
     if (tock_num_modulo_beat == 0) {
         beat();
-    } else // TODO be able to have both a beat and a tick at once
+    }
     if (tock_num_modulo_ticks == 0) {
         tick();
     }
@@ -265,7 +262,6 @@ void Metronome::tock() {
     tock_num_modulo_beat++;
     tock_num_modulo_ticks++;
 
-    // check if we've reached the next tick or beat
     if (tock_num_modulo_ticks >= tocks_for_ticks[ticks_per_beat]) {
         tock_num_modulo_ticks = 0;
     }

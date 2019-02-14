@@ -90,6 +90,8 @@ class Metronome {
 
 
 private:
+    bool running;
+
     twoParamCallback onBeat;
     twoParamCallback onTick;
     oneParamCallback onBpmChanged;
@@ -148,7 +150,8 @@ private:
 
 public:
     Metronome() noexcept:
-          onBeat(dummyCallback2)
+          running(false)
+        , onBeat(dummyCallback2)
         , onTick(dummyCallback2)
         , onBpmChanged(dummyCallback1)
         , onBeatsChanged(dummyCallback1)
@@ -163,7 +166,7 @@ public:
         , tock_period_floor(0)
         , tock_period_remainder(0)
         , tock_num_modulo_bpm(0)
-        {}
+        { reset(); }
 
     void setBpm(uint8_t);
     void setMeasureLength(uint8_t);
@@ -171,19 +174,20 @@ public:
 
     void setup();
     void start();
-    void pause();
+    void stop();
     void reset();
+    void toggle() { running ? stop() : start(); }
 
     void incrementBpm(uint8_t);
     void incrementBeats();
     void incrementTicks();
 
     // parameters: current beat, total beats
-    void setBeatEventListener(const twoParamCallback&);
-    void setTickEventListener(const twoParamCallback&);
-    void setBpmChangeCallback(const oneParamCallback&);
-    void setBeatsChangeCallback(const oneParamCallback&);
-    void setTicksChangeCallback(const oneParamCallback&);
+    void setBeatEventListener(const twoParamCallback& f) { onBeat = f; }
+    void setTickEventListener(const twoParamCallback& f) { onTick = f; }
+    void setBpmChangeCallback(const oneParamCallback& f) { onBpmChanged = f; }
+    void setBeatsChangeCallback(const oneParamCallback& f) { onBeatsChanged = f; }
+    void setTicksChangeCallback(const oneParamCallback& f) { onTicksChanged = f; }
 
     uint8_t getBpm() const;
     uint8_t getMeasureLength() const;

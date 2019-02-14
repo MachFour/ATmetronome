@@ -34,6 +34,8 @@ static constexpr unsigned char digit_pin[] {DIGIT_0, DIGIT_1, DIGIT_2};
 #define SWITCHD PORTC1
 // up switch
 #define SWITCHU PORTC2
+// stop/start switch
+#define SWITCHS PORTC3
 
 #define LED_PORT PORTB
 #define LED_PIN PORTB5

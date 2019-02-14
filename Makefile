@@ -22,10 +22,26 @@ F_CPU = 8000000L
 #ISP_EXT_FUSE=0xfd
 ISP_LOCK_FUSE_PRE=0x3f
 ISP_LOCK_FUSE_POST=0x0f
-ISP_LOW_FUSE=0xff
+
+# From ATMega328p datasheet
+# crystal oscillator, BOD enabled:
+# 	CKSEL0 = 1, SUT[1:0] = 01
+# crystal oscillator, BOD disabled, slow start:
+#   CKSEL0 = 1, SUT[1:0] = 11
+# low power crystal oscillator, 3-8MHz:
+#   CKSEL[3:1] = 110
+# low power crystal oscillator, 8-16MHz:
+#   CKSEL[3:1] = 111
+# full swing crystal oscillator:
+#   CKSEL[3:1] = 011
+#
+# LOW FUSE BYTES:
+# CKDIV8 CKOUT SUT1  SUT0  CKSEL3 CKSEL2 CKSEL1 CKSEL0
+ISP_LOW_FUSE=0xdf
 ISP_HIGH_FUSE=0xde
-# change brown out level to ~1.8V: BODLEVEL[2:0]=110
+# change brown out level to ~1.8V: BODLEVEL[2:0]=110 -> EFUSE=0xfe
 # 0b11111110
+# disable brown out detection: BODLEVEL[2:0]=111 -> EFUSE=0xff
 ISP_EXT_FUSE=0xfe
 BOOTLOADER_FILE=optiboot/optiboot_atmega328.hex
 

@@ -64,6 +64,7 @@
 
 #define TIMER1_PRESCALE 8
 
+// how many timer1 increments (tocks) are needed to count to 1BPM
 static constexpr uint32_t TOCK_PERIOD_FOR_1_BPM = F_CPU/TIMER1_PRESCALE;
 static constexpr uint16_t TIMER1_HIGHEST_COUNT = 65535;
 
@@ -195,8 +196,8 @@ public:
     void toggle() { running ? stop() : start(); }
 
     void incrementBpm(uint8_t);
-    void incrementBeats();
-    void incrementTicks();
+    void incrementBeats(uint8_t);
+    void incrementTicks(uint8_t);
 
     // parameters: current beat, total beats
     void setBeatEventListener(const twoParamCallback& f) { onBeat = f; }

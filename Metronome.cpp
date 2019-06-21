@@ -51,13 +51,13 @@ void Metronome::setBeatDivision(uint8_t newValue) {
     onTicksChanged(newValue);
 
 }
-void Metronome::incrementBeats() {
-    auto new_value = change(beats_per_measure, 1_u8, MIN_BEATS_PER_MEASURE, MAX_BEATS_PER_MEASURE);
+void Metronome::incrementBeats(uint8_t increment) {
+    auto new_value = change(beats_per_measure, increment, MIN_BEATS_PER_MEASURE, MAX_BEATS_PER_MEASURE);
     setMeasureLength(new_value);
 }
 
-void Metronome::incrementTicks() {
-    auto new_value = change(beat_divisor, 1_u8, MIN_TICKS_PER_BEAT, MAX_TICKS_PER_BEAT);
+void Metronome::incrementTicks(uint8_t increment) {
+    auto new_value = change(beat_divisor, increment, MIN_TICKS_PER_BEAT, MAX_TICKS_PER_BEAT);
     setBeatDivision(new_value);
 }
 

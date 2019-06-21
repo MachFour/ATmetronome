@@ -23,7 +23,18 @@ static SoftTimer tickSoundTimer;
 static ToneGen t;
 static SevenSeg sevenSeg;
 
-static bool displaying_bpm = false;
+/* All screens/display modes */
+enum Screen {
+    SCREEN_BLANK,
+    SCREEN_BPM,
+    SCREEN_MEASURE,
+    SCREEN_SUBDIVIDE,
+    NUM_SCREENS
+};
+
+static Screen nextScreen = SCREEN_BLANK;
+static Screen currentScreen = SCREEN_BLANK;
+
 static uint8_t buttonsState = 0;
 static uint8_t lastButtonsState = 0;
 
@@ -87,21 +98,18 @@ inline static void still_alive2() {
 inline static void display_bpm(uint8_t bpm) {
     auto intBpm = static_cast<int>(bpm);
     sevenSeg.showNumber(intBpm, false);
-    displaying_bpm = true;
 }
 
 static void displaySubdivisions(uint8_t subdivision) {
     sevenSeg.setDigit(2, 'd', WITH_DOT);
     sevenSeg.setDigit(1, ' ', WITHOUT_DOT);
     sevenSeg.setDigit(0, '0' + (char)(subdivision), WITHOUT_DOT);
-    displaying_bpm = false;
 }
 
 static void displayMeasureLength(uint8_t measureLength) {
     sevenSeg.setDigit(2, 'b', WITH_DOT);
     sevenSeg.setDigit(1, '0' + (char)(measureLength / 10), WITHOUT_DOT);
     sevenSeg.setDigit(0, '0' + (char)(measureLength % 10), WITHOUT_DOT);
-    displaying_bpm = false;
 }
 
 /*
@@ -171,19 +179,38 @@ static void postTickCallback() {
 }
 
 static void incrementBpm() {
-    m.incrementBpm(1_u8);
+    m.incrementBpm(1);
 }
 
 static void decrementBpm() {
-    m.incrementBpm(0_u8 - 1_u8); // (uint8_t)-1
+    m.incrementBpm(static_cast<uint8_t>(-1)); // (uint8_t)-1
+}
+
+static void setNextScreen(Screen s) {
+    nextScreen = s;
+}
+
+static void incrementNextScreen() {
+    int nextScreenIdx = currentScreen + 1;
+    if (nextScreenIdx >= NUM_SCREENS) {
+        nextScreenIdx = 0;
+    }
+    nextScreen = static_cast<Screen>(nextScreenIdx);
+
 }
 
 static void incrementMeasureLength() {
-    m.incrementBeats();
+    m.incrementBeats(1);
+}
+static void decrementMeasureLength() {
+    m.incrementBeats(static_cast<uint8_t>(-1));
 }
 
 static void incrementSubdivision() {
-    m.incrementTicks();
+    m.incrementTicks(static_cast<uint8_t>(1));
+}
+static void decrementSubdivision() {
+    m.incrementTicks(static_cast<uint8_t>(-1));
 }
 
 ISR(TIMER0_COMPA_vect) {
@@ -247,41 +274,73 @@ static void setup() {
     tickSoundTimer.setAction(postTickCallback);
 }
 
+static void updateScreen() {
+    switch (nextScreen) {
+        case SCREEN_BPM:
+            display_bpm(m.getBpm());
+            sevenSeg.displayOn();
+            break;
+        case SCREEN_MEASURE:
+            displayMeasureLength(m.getMeasureLength());
+            sevenSeg.displayOn();
+            break;
+        case SCREEN_SUBDIVIDE:
+            displaySubdivisions(m.getBeatSubdivisions());
+            sevenSeg.displayOn();
+            break;
+        case SCREEN_BLANK:
+            sevenSeg.displayOff();
+            break;
+    }
+    currentScreen = nextScreen;
+}
 
 // poll inputs -> this should probably be done with interrupts
 static void loop() {
-    // check for change in BPM
-    if (pressed(SWITCHU)) {
-        if (pressed(SWITCHC)) {
-            do_button_action_repeatable(SWITCHU, incrementSubdivision, TICKS_INCREMENT_REPEAT_RATE);
-        } else {
-            do_button_action_repeatable(SWITCHU, incrementBpm, BPM_INCREMENT_REPEAT_RATE);
-        }
-    } else if (pressed(SWITCHD)) {
-        if (pressed(SWITCHC)) {
-            do_button_action_repeatable(SWITCHD, incrementMeasureLength, TICKS_INCREMENT_REPEAT_RATE);
-        } else {
-            do_button_action_repeatable(SWITCHD, decrementBpm, BPM_INCREMENT_REPEAT_RATE);
-        }
+    if (pressed(SWITCHC)) {
+        incrementNextScreen();
+        updateScreen();
+        while (pressed(SWITCHC));
+        _delay_ms(20);
+    } else if (pressed(SWITCHS)) {
+        m.toggle();
+        // wait until button unpressed
+        while (pressed(SWITCHS));
+        _delay_ms(20);
     } else {
-        // this branch has delay
-        if (pressed(SWITCHC)) {
-            // TODO just rotate through displaying the different parameters;
-        } else if (pressed(SWITCHS)) {
-            m.toggle();
-            // wait until button unpressed
-            while (pressed(SWITCHS));
-        } else {
-            if (!displaying_bpm) {
-                display_bpm(m.getBpm());
+        if (pressed(SWITCHU)) {
+            switch (currentScreen) {
+                case SCREEN_BPM:
+                    do_button_action_repeatable(SWITCHU, incrementBpm, BPM_INCREMENT_REPEAT_RATE);
+                    break;
+                case SCREEN_MEASURE:
+                    do_button_action_repeatable(SWITCHU, incrementMeasureLength, TICKS_INCREMENT_REPEAT_RATE);
+                    break;
+                case SCREEN_SUBDIVIDE:
+                    do_button_action_repeatable(SWITCHU, incrementSubdivision, TICKS_INCREMENT_REPEAT_RATE);
+                    break;
+                default:
+                    break;
+            }
+        } else if (pressed(SWITCHD)) {
+            switch (currentScreen) {
+                case SCREEN_BPM:
+                    do_button_action_repeatable(SWITCHD, decrementBpm, BPM_INCREMENT_REPEAT_RATE);
+                    break;
+                case SCREEN_MEASURE:
+                    do_button_action_repeatable(SWITCHD, decrementMeasureLength, TICKS_INCREMENT_REPEAT_RATE);
+                    break;
+                case SCREEN_SUBDIVIDE:
+                    do_button_action_repeatable(SWITCHD, decrementSubdivision, TICKS_INCREMENT_REPEAT_RATE);
+                    break;
+                default:
+                    break;
             }
         }
-        _delay_ms(20);
     }
-
-
-
 }
+
+
 
 int main() {
     setup();
@@ -291,6 +350,10 @@ int main() {
 
     // the magical command
     sei();
+
+    // startup procedure
+    nextScreen = SCREEN_BPM;
+    updateScreen();
 
     for (;;) {
         loop();
